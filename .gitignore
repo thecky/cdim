@@ -1,0 +1,7 @@
+.kdev4/
+cdim.kdev4
+CMakeCache.txt
+CMakeFiles/
+Makefile
+build/
+cmake_install.cmake
