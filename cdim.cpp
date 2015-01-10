@@ -1,83 +1,159 @@
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <vector>
 #include <list>
 #include <iterator>
 #include <iomanip>	// for setw/setfill
 #include <cerrno>
 #include <cstring>
-#include "optionparser.h"
 
 #include "libcdim.h"
 
 using namespace std;
 
-enum  optionIndex { UNKNOWN, HELP, DIRECTORY, DUMP, CREATE, TRACK, SECTOR };
+#define MIN_TRACK 1
+#define MAX_TRACK 40
+#define MIN_SECTOR 0
+#define MAX_SECTOR 22
 
-const option::Descriptor usage[] =
+void print_usage (const string& errormsg = "")
 {
- {UNKNOWN, 0, "", "",option::Arg::None, "USAGE: cdim [options] imagefilename\n\n"
-                                        "Options:" },
- {HELP, 0,"h", "help",option::Arg::None, "  --help, -h  \tprint usage and exit" },
- {DIRECTORY, 0,"d","dir",option::Arg::None, "  --dir, -d  \tshow drectory" },
- {CREATE, 0, "c", "create", option::Arg::None, "  --create, -c  \tcreate discImage" },
- {DUMP, 0, "u", "dump", option::Arg::None, "  --dump, -u  \tdump a block (requires -s and -t" },
- {TRACK, 0, "t", "track", 1, "  --track, -t  \ttrack parameter (f.e. for --dump" },
- {SECTOR, 0, "s", "sector", option::Arg::Required, "  --sector, -s  \tsector parameter (f.e. for --dump" },
- {UNKNOWN, 0, "", "",option::Arg::None, "\nExamples:\n"
-                               "  cdim --dir test.d64\n"
-                               "  cdim --extract --as prg --save extractedfile.prg test.d64\n" },
- {0,0,0,0,0,0}
-};
-
+  cout << "Usage: cdim [options] -f imagefilename" << endl << endl;
+  cout << "Options:" << endl;
+  cout << "\t-h, --help\tprint usage and exit" << endl;
+  cout << "\t-c, --create\tcreate an new imagefile" << endl;
+  cout << "\t-d, --directory\tshow directory from image" << endl;
+  cout << "\t-u, --dump\tdump a block (requires -s and -t)" << endl;
+  cout << endl;
+  cout << "\t-f, --filename\timagefilename (required!)" << endl;
+  cout << "\t-s, --sector\tsector parameter (f.e. for --dump)" << endl;
+  cout << "\t-t, --track\ttrack parameter (f.e. for --dump)" << endl;
+  
+  if (!errormsg.empty())
+  {
+    cout << endl;
+    cout << errormsg << endl;
+  }
+}
 
 int main (int argc, char *argv[])
 {
   string imagefilename = "";
   unsigned int track, sector;
   
-  argc-=(argc>0); argv+=(argc>0); // skip program name argv[0] if present
-  option::Stats  stats(usage, argc, argv);
-  option::Option* options = new option::Option[stats.options_max];
-  option::Option* buffer  = new option::Option[stats.buffer_max];
-  option::Parser parse(usage, argc, argv, options, buffer);
-
-  if (parse.error())
+  bool opt_dir, opt_create, opt_dump;
+  opt_dir = false;
+  opt_create = false;
+  opt_dump = false;
+  
+  bool valid_track, valid_sector, require_ts;
+  valid_track = false;
+  valid_sector = false;
+  require_ts = false;
+  
+  bool valid_filename;
+  valid_filename = false;
+  
+  if (argc < 3) { print_usage(); return false; }
+  
+  for (int i = 1; i < argc; ++i)
   {
-    return false;
-  }
-
-  if (options[HELP] || argc == 0)
-  {
-    option::printUsage(std::cout, usage);
-    return false;
-  }
-
-  if (parse.nonOptionsCount () != 1)
-  {
-    option::printUsage (cout, usage);
+    string arg = argv[i];
     
-    if (parse.nonOptionsCount () == 0)
+    /* check for help option */
+    if (arg == "-h" || arg == "--help")
     {
-      cout << "Error: no imagefilename" << endl;
-    }
-    else
-    {
-      cout << "Error: too many filenames" << endl;
+      print_usage(); return true;
     }
     
+    /* check for track parameter */
+    if (arg == "-t" || arg == "--track")
+    {
+      if (i + 1 < argc)
+      {
+	string para = argv[++i];
+	istringstream (para) >> track;
+	
+	if (track < MIN_TRACK || track > MAX_TRACK)
+	{
+	  string msg = "Trackvalue out of range";
+	  print_usage (msg);
+	  return false;
+	}
+	
+	valid_track = true;
+      }
+    }
+
+    /* check for sector parameter */
+    if (arg == "-s" || arg == "--sector")
+    {
+      if (i + 1 < argc)
+      {
+	string para = argv[++i];
+	istringstream (para) >> sector;
+	
+	if (sector < MIN_SECTOR || sector > MAX_SECTOR)
+	{
+	  string msg = "Sectorvalue out of range";
+	  print_usage (msg);
+	  return false;
+	}
+	
+	valid_sector = true;
+      }
+    }
+
+    /* check for create option */
+    if (arg == "-c" || arg == "--create")
+    {
+      opt_create = true;
+    }
+
+    /* check for directory option */
+    if (arg == "-d" || arg == "--directory")
+    {
+      opt_dir = true;
+    }
+    
+    /* check for dump option */
+    if (arg == "-u" || arg == "--dump")
+    {
+      opt_dump = true;
+      require_ts = true;
+    }
+    
+    /* check for filenameparameter */
+    if (arg == "-f" || arg == "--filename")
+    {
+      if (i + 1 < argc)
+      {
+	imagefilename = argv[++i];
+	valid_filename = true;
+      }
+    }
+    
+  }
+
+  if (!valid_filename)
+  {
+    string msg = "missing filename";
+    print_usage (msg);
     return false;
   }
-  else
+  
+  if (require_ts && (!valid_track || !valid_sector))
   {
-    imagefilename = parse.nonOption (0);
-    /* TODO: link check etc. */
+    string msg = "track or sector parameter required";
+    print_usage (msg);
+    return false;
   }
   
   cdim::cdim discImage;
   discImage.setFilename (imagefilename);
   
-  if (options[CREATE])
+  if (opt_create)
   {
     return true;
   }
@@ -87,7 +163,7 @@ int main (int argc, char *argv[])
     /*************************
      * display directory
      *************************/
-    if (options[DIRECTORY])
+    if (opt_dir)
     {
       list <cdim::s_direntry> directory;
       discImage.getDirectory (directory);
@@ -151,13 +227,8 @@ int main (int argc, char *argv[])
     /*************************
      * dump a block
      *************************/
-    if (options[DUMP])
+    if (opt_dump)
     {
-      /* remove later, when -t/-s is implemented */
-      unsigned int track, sector;
-      track = 18;
-      sector = 1;
-      
       vector <unsigned char> dump_content;
       vector <unsigned char>::iterator it_dump_content;
       
@@ -209,9 +280,6 @@ int main (int argc, char *argv[])
     return false;
   }
  
-  delete[] options;
-  delete[] buffer;
-
   /*cdim::cdim disc1;
 	
 	disc1.setFilename ("test.d64");
