@@ -27,6 +27,7 @@ void print_usage (const string& errormsg = "")
   cout << "\t-u, --dump\tdump a block (requires -s and -t)" << endl;
   cout << endl;
   cout << "\t-f, --filename\timagefilename (required!)" << endl;
+  cout << "\t-r, --rawmode\tprint directory/filenames in raw screencode" << endl;
   cout << "\t-s, --sector\tsector parameter (f.e. for --dump)" << endl;
   cout << "\t-t, --track\ttrack parameter (f.e. for --dump)" << endl;
   
@@ -47,7 +48,8 @@ int main (int argc, char *argv[])
   opt_create = false;
   opt_dump = false;
   
-  bool valid_track, valid_sector, require_ts;
+  bool rawmode, valid_track, valid_sector, require_ts;
+  rawmode = false;
   valid_track = false;
   valid_sector = false;
   require_ts = false;
@@ -65,6 +67,12 @@ int main (int argc, char *argv[])
     if (arg == "-h" || arg == "--help")
     {
       print_usage(); return true;
+    }
+    
+    /* check for rawmode */
+    if (arg == "-r" || arg == "--rawmode")
+    {
+      rawmode = true;
     }
     
     /* check for track parameter */
@@ -170,7 +178,7 @@ int main (int argc, char *argv[])
       
       if (discImage.getDirectory (directory))
       {
-	cout << "discname: " << discImage.getDiscname () << " " << discImage.getDiscID () << " " << discImage.getDosType () << endl;
+	cout << "0 \"" << discImage.getDiscname (rawmode) << "\" " << discImage.getDiscID (rawmode) << " " << discImage.getDosType (rawmode) << endl;
 	
 	list <cdim::s_direntry>::iterator directory_it;
 	directory_it = directory.begin ();
@@ -178,17 +186,17 @@ int main (int argc, char *argv[])
 	while (directory_it != directory.end () )
 	{
 	  cdim::s_direntry entry = *directory_it;
-	  cout << entry.filesize << "\t\"" << entry.filename << "\" ";
-	  	      
-	  if (entry.file_locked)
+	  cout << entry.filesize << "\t\"";
+	  
+	  if (rawmode)
 	  {
-	    cout << "<";
+	    cout << entry.rawfilename << "\" ";
 	  }
 	  else
 	  {
-	    cout << " ";
+	    cout << entry.filename << "\" ";
 	  }
-
+	  	      
 	  string filetype = "";
 	  
 	  switch (entry.filetype)
@@ -213,7 +221,14 @@ int main (int argc, char *argv[])
 	      break;
 	  }
 
-	  cout << filetype << endl;
+	  cout << filetype;
+	  
+  	  if (entry.file_locked)
+	  {
+	    cout << "<";
+	  }
+	  
+	  cout << endl;
 	  directory_it++;
 	}
       }
