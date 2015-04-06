@@ -7,6 +7,7 @@
 #include <iomanip>	// for setw/setfill
 #include <cerrno>
 #include <cstring>
+#include <locale>
 
 #include "libcdim.h"
 
@@ -16,6 +17,8 @@ using namespace std;
 #define MAX_TRACK 40
 #define MIN_SECTOR 0
 #define MAX_SECTOR 22
+
+string conv2utf8 (string);
 
 void print_usage (const string& errormsg = "")
 {
@@ -178,7 +181,22 @@ int main (int argc, char *argv[])
       
       if (discImage.getDirectory (directory))
       {
-	cout << "0 \"" << discImage.getDiscname (rawmode) << "\" " << discImage.getDiscID (rawmode) << " " << discImage.getDosType (rawmode) << endl;
+	string discname, discid, dostype, filename;
+	
+	if (rawmode)
+	{
+	  discname = discImage.getDiscname ();
+	  discid = discImage.getDiscID ();
+	  dostype = discImage.getDosType ();
+	}
+	else
+	{
+	  discname = conv2utf8 (discImage.getDiscname ());
+	  discid = conv2utf8 (discImage.getDiscID ());
+	  dostype = conv2utf8 (discImage.getDosType ());
+	}
+	
+	cout << "0 \"" << discname << "\" " << discid << " " << dostype << endl;
 	
 	list <cdim::s_direntry>::iterator directory_it;
 	directory_it = directory.begin ();
@@ -186,17 +204,19 @@ int main (int argc, char *argv[])
 	while (directory_it != directory.end () )
 	{
 	  cdim::s_direntry entry = *directory_it;
-	  cout << entry.filesize << "\t\"";
+	  cout << setw(5) << left << entry.filesize << "\"";
 	  
 	  if (rawmode)
 	  {
-	    cout << entry.rawfilename << "\" ";
+	    filename = entry.filename + "\"";
 	  }
 	  else
 	  {
-	    cout << entry.filename << "\" ";
+	    filename = conv2utf8 (entry.filename) + "\"";
 	  }
-	  	      
+	  
+	  cout << setw (17) << left << filename << " ";
+	  
 	  string filetype = "";
 	  
 	  switch (entry.filetype)
@@ -217,7 +237,7 @@ int main (int argc, char *argv[])
 	      filetype = "REL";
 	      break;
 	    default:
-	      filetype = "Invalid";
+	      filetype = "?";
 	      break;
 	  }
 
@@ -231,6 +251,7 @@ int main (int argc, char *argv[])
 	  cout << endl;
 	  directory_it++;
 	}
+	
       }
       else
       {
@@ -294,173 +315,280 @@ int main (int argc, char *argv[])
     cerr << "failed to open imagefile:" << imagefilename << endl;
     return false;
   }
- 
-  /*cdim::cdim disc1;
-	
-	disc1.setFilename ("test.d64");
-	
-	if (disc1.openImage ())
-	{
-	  list <cdim::s_direntry> thedir;
-	  
-	  int i = 0;
-	  disc1.getDirectory (thedir);
-	  if (disc1.getDirectory (thedir))
-	  {
-	    list <cdim::s_direntry>::iterator thedir_it;
-	    thedir_it = thedir.begin ();
 
-	    cout << "Anzahl: " << thedir.size () << endl;
-	    
-	    while (thedir_it != thedir.end () )
-	    {
-	      cdim::s_direntry entry = *thedir_it;
-	      cout << i << " \"" << entry.filename << "\"";
-	      
-	      if (entry.file_locked)
-	      {
-		cout << "<";
-	      }
-	      
-	      if (entry.file_open)
-	      {
-		cout << "   open";
-	      }
-	      
-	      cout << "|" << entry.rel_sidetrack << "|" << endl;
-	      
-	      i++;
-	      thedir_it++;
-	    }
-	  }
-	  else
-	  {
-	    cerr << "couldn't read directory" << endl;
-	  }
-	}
-	else
-	{
-	  cerr << "failed to open image" << endl;
-	}
-	
-	if (disc1.extractFileByIndex (1, "testm2.bin", cdim::e_PRG_strip_linker))
-	{
-	  cout << "extracted" << endl;
-	}
-	else
-	{
-	  cout << "failed to extract" << endl;
-	}
-
-	if (disc1.extractFileByName ("MDR-DEPACKER.INS", "testm3.bin", cdim::e_PRG_strip_linker))
-	{
-	  cout << "2.extracted" << endl;
-	}
-	else
-	{
-	  cout << "2.failed to extract" << endl;
-	}
-*/
-/*
-	if (!disc1.openImage ("test.d64"))
-	{
-	  cout << "failed to open image" << endl;
-	}
-	
-	vector <unsigned char> blubb;
-	vector <unsigned char>::iterator sectorcontent_it;
-	unsigned int track, sector;
-	
-	track = 18;
-	sector = 1;
-	
-	if (disc1.getSector (track, sector, blubb))
-	{
-	  cout << "test:  " << blubb.size () << endl;
-	  cout << "test2: " << blubb.capacity () << endl;
-	  
-	  sectorcontent_it = blubb.begin ();
-	  
-	  register int i, j;
-	  int count = 0;
-	  unsigned char c[16];
-	  //int i = 0;
-	  
-	  while (sectorcontent_it != blubb.end ())
-	  {
-	    for (i = 0; i < 16 && sectorcontent_it != blubb.end (); i++)
-	    {
-	      c[i] = *sectorcontent_it;
-	      sectorcontent_it++;
-	    }
-	    
-	    for (j = 0; j < i; j++)
-	    {
-	      cout << setw(2) << setfill('0') << hex << (int) c[j] << " ";
-	    }
-	    
-	    cout << "\t";
-	    
-	    for (j = 0; j < i; j++)
-	    {
-	      if (isprint(c[j]))
-	      {
-		cout << c[j];
-	      }
-	      else
-	      {
-		cout << ".";
-	      }
-	    }	    
-	    cout << endl;
-	  }
-	  cout << endl;
-	}
-	else
-	{
-	  cout << "failed" << endl;
-	}
-	
-	disc1.closeImage ();
-	/*
-	
-	if (imgfile.is_open ())
-	{
-	  track=18;
-	  sector=1;
-	  
-	  if (disc1.getSector (imgfile, track, sector, sectorcontent))
-	  {
-	    cout << "size: " << sectorcontent.size () << endl;
-	    cout << "startpos: " << track << endl;
-	    cout << "endpos: " << sector << endl << endl;
-	    cout << "proof: " << setw(2) << setfill('0') << hex << (int) sectorcontent[0] << " " << hex << (int) sectorcontent[1] << endl;
-	    	    
-	    sectorcontent_it = sectorcontent.begin ();
-	  
-	    int i = 0;
-	  
-	    while (sectorcontent_it != sectorcontent.end ())
-	    {
-	      unsigned char a;
-	      a=*sectorcontent_it;
-	      cout << setw(2) << setfill('0') << hex << (int)a << " ";
-	      if (i >= 39) { cout << endl; i=0; }
-	      sectorcontent_it++;
-	      i++;
-	    }
-	  }
-	  else
-	  {
-	    cout << "failed" << endl;
-	  }
-	}
-	else
-	{
-	  cout << "fehler:" << strerror(errno) << endl;
-	}
-	*/
-
-	return 0;
+  return 0;
 }
 
+string conv2utf8 (string convstr)
+{
+  string petascii2utf [] =
+  {
+    "\uFFEF",       //UNDEFINED
+    "\uFFEF",       //UNDEFINED
+    "\uFFEF",       //UNDEFINED
+    "\uFFEF",       //UNDEFINED
+    "\uFFEF",       //UNDEFINED
+    "\uF100",       //WHITE
+    "\uFFEF",       //UNDEFINED
+    "\uFFEF",       //UNDEFINED
+    "\uF118",       //DISABLE
+    "\uF119",       //ENABLE
+    "\uFFEF",       //UNDEFINED
+    "\uFFEF",       //UNDEFINED
+    "\uFFEF",       //UNDEFINED
+    "\u000D",       //CARRIAGE
+    "\u000E",       //SHIFT
+    "\uFFEF",       //UNDEFINED
+    "\uFFEF",       //UNDEFINED
+    "\uF11C",       //CURSOR
+    "\uF11A",       //REVERSE
+    "\uF120",       //HOME
+    "\u007F",       //DELETE
+    "\uFFEF",       //UNDEFINED
+    "\uFFEF",       //UNDEFINED
+    "\uFFEF",       //UNDEFINED
+    "\uFFEF",       //UNDEFINED
+    "\uFFEF",       //UNDEFINED
+    "\uFFEF",       //UNDEFINED
+    "\uFFEF",       //UNDEFINED
+    "\uF101",       //RED
+    "\uF11D",       //CURSOR
+    "\uF102",       //GREEN
+    "\uF103",       //BLUE
+    "\u0020",       //SPACE
+    "\u0021",       //EXCLAMATION
+    "\u0022",       //QUOTATION
+    "\u0023",       //NUMBER
+    "\u0024",       //DOLLAR
+    "\u0025",       //PERCENT
+    "\u0026",       //AMPERSAND
+    "\u0027",       //APOSTROPHE
+    "\u0028",       //LEFT
+    "\u0029",       //RIGHT
+    "\u002A",       //ASTERISK
+    "\u002B",       //PLUS
+    "\u002C",       //COMMA
+    "\u002D",       //HYPHEN-MINUS
+    "\u002E",       //FULL
+    "\u002F",       //SOLIDUS
+    "\u0030",       //DIGIT
+    "\u0031",       //DIGIT
+    "\u0032",       //DIGIT
+    "\u0033",       //DIGIT
+    "\u0034",       //DIGIT
+    "\u0035",       //DIGIT
+    "\u0036",       //DIGIT
+    "\u0037",       //DIGIT
+    "\u0038",       //DIGIT
+    "\u0039",       //DIGIT
+    "\u003A",       //COLON
+    "\u003B",       //SEMICOLON
+    "\u003C",       //LESS-THAN
+    "\u003D",       //EQUALS
+    "\u003E",       //GREATER-THAN
+    "\u003F",       //QUESTION
+    "\u0040",       //COMMERCIAL
+    "\u0041",       //LATIN
+    "\u0042",       //LATIN
+    "\u0043",       //LATIN
+    "\u0044",       //LATIN
+    "\u0045",       //LATIN
+    "\u0046",       //LATIN
+    "\u0047",       //LATIN
+    "\u0048",       //LATIN
+    "\u0049",       //LATIN
+    "\u004A",       //LATIN
+    "\u004B",       //LATIN
+    "\u004C",       //LATIN
+    "\u004D",       //LATIN
+    "\u004E",       //LATIN
+    "\u004F",       //LATIN
+    "\u0050",       //LATIN
+    "\u0051",       //LATIN
+    "\u0052",       //LATIN
+    "\u0053",       //LATIN
+    "\u0054",       //LATIN
+    "\u0055",       //LATIN
+    "\u0056",       //LATIN
+    "\u0057",       //LATIN
+    "\u0058",       //LATIN
+    "\u0059",       //LATIN
+    "\u005A",       //LATIN
+    "\u005B",       //LEFT
+    "\u00A3",       //POUND
+    "\u005D",       //RIGHT
+    "\u2191",       //UPWARDS
+    "\u2190",       //LEFTWARDS
+    "\u2501",       //BOX
+    "\u2660",       //BLACK
+    "\u2502",       //BOX
+    "\u2501",       //BOX
+    "\uF122",       //BOX
+    "\uF123",       //BOX
+    "\uF124",       //BOX
+    "\uF126",       //BOX
+    "\uF128",       //BOX
+    "\u256E",       //BOX
+    "\u2570",       //BOX
+    "\u256F",       //BOX
+    "\uF12A",       //ONE
+    "\u2572",       //BOX
+    "\u2571",       //BOX
+    "\uF12B",       //ONE
+    "\uF12C",       //ONE
+    "\u25CF",       //BLACK
+    "\uF125",       //BOX
+    "\u2665",       //BLACK
+    "\uF127",       //BOX
+    "\u256D",       //BOX
+    "\u2573",       //BOX
+    "\u25CB",       //WHITE
+    "\u2663",       //BLACK
+    "\uF129",       //BOX
+    "\u2666",       //BLACK
+    "\u253C",       //BOX
+    "\uF12E",       //LEFT
+    "\u2502",       //BOX
+    "\u03C0",       //GREEK
+    "\u25E5",       //BLACK
+    "\uFFEF",       //UNDEFINED
+    "\uF104",       //ORANGE
+    "\uFFEF",       //UNDEFINED
+    "\uFFEF",       //UNDEFINED
+    "\uFFEF",       //UNDEFINED
+    "\uF110",       //FUNCTION
+    "\uF112",       //FUNCTION
+    "\uF114",       //FUNCTION
+    "\uF116",       //FUNCTION
+    "\uF111",       //FUNCTION
+    "\uF113",       //FUNCTION
+    "\uF115",       //FUNCTION
+    "\uF117",       //FUNCTION
+    "\u000A",       //LINE
+    "\u000F",       //SHIFT
+    "\uFFEF",       //UNDEFINED
+    "\uF105",       //BLACK
+    "\uF11E",       //CURSOR
+    "\uF11B",       //REVERSE
+    "\u000C",       //FORM
+    "\uF121",       //INSERT
+    "\uF106",       //BROWN
+    "\uF107",       //LIGHT
+    "\uF108",       //GRAY
+    "\uF109",       //GRAY
+    "\uF10A",       //LIGHT
+    "\uF10B",       //LIGHT
+    "\uF10C",       //GRAY
+    "\uF10D",       //PURPLE
+    "\uF11D",       //CURSOR
+    "\uF10E",       //YELLOW
+    "\uF10F",       //CYAN
+    "\u00A0",       //NO-BREAK
+    "\u258C",       //LEFT
+    "\u2584",       //LOWER
+    "\u2594",       //UPPER
+    "\u2581",       //LOWER
+    "\u258F",       //LEFT
+    "\u2592",       //MEDIUM
+    "\u2595",       //RIGHT
+    "\uF12F",       //LOWER
+    "\u25E4",       //BLACK
+    "\uF130",       //RIGHT
+    "\u251C",       //BOX
+    "\uF134",       //BLACK
+    "\u2514",       //BOX
+    "\u2510",       //BOX
+    "\u2582",       //LOWER
+    "\u250C",       //BOX
+    "\u2534",       //BOX
+    "\u252C",       //BOX
+    "\u2524",       //BOX
+    "\u258E",       //LEFT
+    "\u258D",       //LEFT
+    "\uF131",       //RIGHT
+    "\uF132",       //UPPER
+    "\uF133",       //UPPER
+    "\u2583",       //LOWER
+    "\uF12D",       //ONE
+    "\uF135",       //BLACK
+    "\uF136",       //BLACK
+    "\u2518",       //BOX
+    "\uF137",       //BLACK
+    "\uF138",       //TWO
+    "\u2501",       //BOX
+    "\u2660",       //BLACK
+    "\u2502",       //BOX
+    "\u2501",       //BOX
+    "\uF122",       //BOX
+    "\uF123",       //BOX
+    "\uF124",       //BOX
+    "\uF126",       //BOX
+    "\uF128",       //BOX
+    "\u256E",       //BOX
+    "\u2570",       //BOX
+    "\u256F",       //BOX
+    "\uF12A",       //ONE
+    "\u2572",       //BOX
+    "\u2571",       //BOX
+    "\uF12B",       //ONE
+    "\uF12C",       //ONE
+    "\u25CF",       //BLACK
+    "\uF125",       //BOX
+    "\u2665",       //BLACK
+    "\uF127",       //BOX
+    "\u256D",       //BOX
+    "\u2573",       //BOX
+    "\u25CB",       //WHITE
+    "\u2663",       //BLACK
+    "\uF129",       //BOX
+    "\u2666",       //BLACK
+    "\u253C",       //BOX
+    "\uF12E",       //LEFT
+    "\u2502",       //BOX
+    "\u03C0",       //GREEK
+    "\u25E5",       //BLACK
+    "\u00A0",       //NO-BREAK
+    "\u258C",       //LEFT
+    "\u2584",       //LOWER
+    "\u2594",       //UPPER
+    "\u2581",       //LOWER
+    "\u258F",       //LEFT
+    "\u2592",       //MEDIUM
+    "\u2595",       //RIGHT
+    "\uF12F",       //LOWER
+    "\u25E4",       //BLACK
+    "\uF130",       //RIGHT
+    "\u251C",       //BOX
+    "\uF134",       //BLACK
+    "\u2514",       //BOX
+    "\u2510",       //BOX
+    "\u2582",       //LOWER
+    "\u250C",       //BOX
+    "\u2534",       //BOX
+    "\u252C",       //BOX
+    "\u2524",       //BOX
+    "\u258E",       //LEFT
+    "\u258D",       //LEFT
+    "\uF131",       //RIGHT
+    "\uF132",       //UPPER
+    "\uF133",       //UPPER
+    "\u2583",       //LOWER
+    "\uF12D",       //ONE
+    "\uF135",       //BLACK
+    "\uF136",       //BLACK
+    "\u2518",       //BOX
+    "\uF137",       //BLACK
+    "\u03C0"	    //GREEK
+  };
+  
+  string thenew = "";
+  string::iterator convstr_it = convstr.begin ();
+  
+  while (convstr_it != convstr.end ())
+  {
+    thenew += petascii2utf[(unsigned char)*convstr_it];
+    convstr_it++;
+  }
+  
+  return thenew;
+}
