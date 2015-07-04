@@ -1,3 +1,22 @@
+/*
+ *   libcdim - a library for manipulation CBM imagefiles (mainly d64)
+ * 
+ *   Copyright (C) [2015]  [Thomas Martens]
+ *
+ *   This program is free software; you can redistribute it and/or modify it
+ *   under the terms of the GNU General Public License as published by the
+ *   Free Software Foundation; either version 3 of the License, or (at your
+ *   option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful, but
+ *   WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ *   or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+ *   for more details.
+ *
+ *   You should have received a copy of the GNU General Public License along
+ *   with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -27,8 +46,11 @@ void print_usage (const string& errormsg = "")
   cout << "\t-h, --help\tprint usage and exit" << endl;
   cout << "\t-c, --create\tcreate an new imagefile" << endl;
   cout << "\t-d, --directory\tshow directory from image" << endl;
+  cout << "\t-e, --extract\textract a file from image (see also --as --ef)" << endl;
   cout << "\t-u, --dump\tdump a block (requires -s and -t)" << endl;
   cout << endl;
+  cout << "\t-as\t\tfiletype for extracting/inserting (optional)" << endl;
+  cout << "\t-ef\t\tfilename for -e (optional)" << endl;
   cout << "\t-f, --filename\timagefilename (required!)" << endl;
   cout << "\t-r, --rawmode\tprint directory/filenames in raw screencode" << endl;
   cout << "\t-s, --sector\tsector parameter (f.e. for --dump)" << endl;
@@ -43,13 +65,17 @@ void print_usage (const string& errormsg = "")
 
 int main (int argc, char *argv[])
 {
-  string imagefilename = "";
+  string imagefilename = "";	// discimage filename
+  string prgfilename = "";	// prgfilename inside an image
+  string fsfilename = "";	// filename local filesystem for extract/insert
+  
   unsigned int track, sector;
   
-  bool opt_dir, opt_create, opt_dump;
+  bool opt_dir, opt_create, opt_dump, opt_export;
   opt_dir = false;
   opt_create = false;
   opt_dump = false;
+  opt_export = false;
   
   bool rawmode, valid_track, valid_sector, require_ts;
   rawmode = false;
@@ -133,6 +159,34 @@ int main (int argc, char *argv[])
     {
       opt_dump = true;
       require_ts = true;
+    }
+    
+    /* check for export option */
+    if (arg == "-e" || arg == "--export")
+    {
+      if (i + 1 < argc)
+      {
+	prgfilename = argv[++i];
+	/* IMPL: filenamechecking (outfile exist, max 16c... */
+	
+	opt_export = true;
+      }
+    }
+
+    /* check for an additional export filename option */
+    if (arg == "-ef")
+    {
+      if (i + 1 < argc)
+      {
+	fsfilename = argv[++i];
+	/* IMPL: filenamechecking (outfile exist, max 16c... */
+      }
+    }
+    
+    /* check for export/import filetype */
+    if (arg == "-as")
+    {
+      
     }
     
     /* check for filenameparameter */
@@ -314,6 +368,23 @@ int main (int argc, char *argv[])
   {
     cerr << "failed to open imagefile:" << imagefilename << endl;
     return false;
+  }
+
+  /*************************
+   * export a file
+   *************************/
+  if (opt_export)
+  {
+    if (fsfilename.empty())
+    {
+      /* TODO: file extension */
+      fsfilename = prgfilename + ".prg";
+    }
+    
+    if (!discImage.extractFileByName (prgfilename, fsfilename, cdim::e_PRG_strip_linker))
+    {
+      cout << "failed to export " << prgfilename << " as prg" << endl;
+    }
   }
 
   return 0;
