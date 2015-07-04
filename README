@@ -1,0 +1,44 @@
+About
+-----
+
+cdim is linux command line tool reading and manipulating C64 discimages.
+This tool need the shared library libcdim (you can find libcdim under
+https://github.com/thecky/libcdim).
+
+
+Latest Version
+--------------
+
+See https://github.com/thecky/cdim
+
+
+How to build
+------------
+
+get the source:
+  git clone https://github.com/thecky/cdim.git
+
+cd to it:
+  cd cdim
+
+create the Makefile:
+  cmake .
+
+build:
+  make
+
+Note: After the make you can find the tool in the build directory.
+
+Install the tool in your system path as root:
+  make install
+
+
+Documentation
+-------------
+
+Still missing...
+
+License
+-------
+
+See file LICENSE.
